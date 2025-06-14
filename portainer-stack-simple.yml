@@ -1,0 +1,60 @@
+version: "3.7"
+services:
+
+## --------------------------- IMPA AI --------------------------- ##
+  impa-ai:
+    image: impa365/impa-ai:latest # Exemplo: seuusuario/impa-ai-app:latest
+    
+    networks:
+      - ServerIpa
+    environment:
+      # Configuração do Supabase (SEM NEXT_PUBLIC_ - apenas para runtime)
+      - SUPABASE_URL=https://supabaseteste.impa365.com
+      - SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.ewogICJyb2xlIjogImFub24iLAogICJpc3MiOiAic3VwYWJhc2UiLAogICJpYXQiOiAxNzE1MDUwODAwLAogICJleHAiOiAxODcyODE3MjAwCn0.0w0daMEG_Z8srUfzUgH5uEixdjJYp0Xyh_12su0L07Q
+      
+      # Configuração do NextAuth
+      - NEXTAUTH_URL=https://aiteste.impa365.com
+      - NEXTAUTH_SECRET=dfdghoiuAHSIASDA9859aHNUH
+      
+      # Chaves de Aplicação Personalizadas
+      - CUSTOM_KEY=DJD233@CFKKJID897fSF8F
+
+      # Ambiente da Aplicação
+      - NODE_ENV=production
+      
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "2"
+          memory: 2048M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      labels:
+        - "traefik.enable=true"
+        # Define o roteador HTTP para o impa-ai
+        - "traefik.http.routers.impa_ai_router.rule=Host(`aiteste.impa365.com`)" # Exemplo: app.seusite.com
+        - "traefik.http.routers.impa_ai_router.entrypoints=websecure"
+        - "traefik.http.routers.impa_ai_router.tls=true"
+        - "traefik.http.routers.impa_ai_router.tls.certresolver=letsencryptresolver"
+        # Define o serviço para o impa-ai
+        - "traefik.http.services.impa_ai_service.loadbalancer.server.port=3000" # Porta interna da aplicação Next.js
+        - "traefik.http.services.impa_ai_service.loadbalancer.passHostHeader=true"
+        # Vincula o roteador ao serviço
+        - "traefik.http.routers.impa_ai_router.service=impa_ai_service"
+        # Especifica a rede Docker que o Traefik deve usar para se conectar a este serviço
+        - "traefik.docker.network=ServerIpa"
+
+## --------------------------- Networks --------------------------- ##
+# Garanta que esta rede seja criada no Portainer ou Docker Swarm antecipadamente
+# Exemplo: docker network create --driver overlay ServerIpa
+networks:
+  ServerIpa:
+    external: true
+    name: ServerIpa
